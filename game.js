@@ -255,6 +255,8 @@ function loop(ts) {
     }
   }
   draw();
+  // endGame() (vía lockPiece → spawn) ya canceló el frame; no volver a programarlo
+  if (gameOver) return;
   animId = requestAnimationFrame(loop);
 }
 
