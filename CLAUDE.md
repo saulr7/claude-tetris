@@ -20,7 +20,8 @@ Three files, all loaded by `index.html` (`game.js` via a plain `<script>`, no mo
 
 ### Game model
 
-- `board` is a `ROWS×COLS` (20×10) array of color indices; `0` is empty. `PIECES[i]` and `COLORS[i]` share the same 1–7 index (I,O,T,S,Z,J,L), and the shape's cell values *are* that index, so `drawBlock` colors directly from the cell value.
+- `board` is a `ROWS×COLS` (20×10) array of color indices; `0` is empty. `PIECES[i]` and `COLORS[i]` (and each `SKINS[x].colors[i]`) share the same 1–7 index (I,O,T,S,Z,J,L), and the shape's cell values *are* that index, so `drawBlock` colors directly from the cell value.
+- Skins: `SKINS` = {retro, neon, pastel, pixel}, each with `colors`, `bg`, `grid` and a `draw(ctx, px, py, size, color)` function. `drawBlock` delegates to `SKINS[currentSkin]`; `bg`/`grid` of `null` (retro) fall back to the light/dark theme CSS vars. `applySkin` persists to localStorage `'skin'` and repaints when paused/game over.
 - Pieces are `{type, shape, x, y}`; rotation produces a new matrix via `rotateCW`, and `tryRotate` tries horizontal wall kicks `[0,-1,1,-2,2]`.
 - `collide(shape, ox, oy)` is the single collision check used for movement, rotation, ghost, and spawn (game over is detected in `spawn()` when the new piece collides).
 - Piece lifecycle: `lockPiece()` → `merge()` → `clearLines()` (updates lines/score/level/`dropInterval`) → `spawn()`.

@@ -140,6 +140,28 @@ body {
   color: var(--accent);
 }
 
+/* ---- Selector de skin ---- */
+#skin-select {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#skin-select option {
+  background: var(--board-bg);
+  color: var(--text);
+}
+
+#skin-select:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ---- Controles ---- */
 .controls ul {
   list-style: none;
