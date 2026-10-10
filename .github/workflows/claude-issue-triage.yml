@@ -1,0 +1,48 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, reopened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Analyze and label issue with Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: >-
+            --allowedTools "Read,Glob,Grep,Bash(gh label list:*),Bash(gh issue view:*),Bash(gh issue list:*),Bash(gh search issues:*),Bash(gh issue edit:*),Bash(gh issue comment:*)"
+          prompt: |
+            Eres un asistente de triage para el repositorio ${{ github.repository }} (un Tetris en JavaScript vanilla).
+            Se acaba de abrir el issue #${{ github.event.issue.number }}.
+
+            Pasos:
+            1. Ejecuta `gh issue view ${{ github.event.issue.number }}` para leer el issue completo y `gh label list` para ver las etiquetas disponibles.
+            2. Lee `CLAUDE.md` y el código relevante (`game.js`, `index.html`, `style.css`) para entender qué partes afecta el issue.
+            3. Busca posibles duplicados con `gh search issues` o `gh issue list`. Si encuentras uno, menciónalo en el comentario y usa la etiqueta `duplicate`.
+            4. Aplica entre 1 y 3 etiquetas que YA EXISTAN con `gh issue edit ${{ github.event.issue.number }} --add-label "<etiqueta>"`. Nunca crees etiquetas nuevas. Usa `good first issue` solo si el cambio es pequeño y localizado.
+            5. Publica UN solo comentario en español con `gh issue comment ${{ github.event.issue.number }} --body "..."` que incluya:
+               - **Resumen** del issue.
+               - **Etiquetas aplicadas** y por qué.
+               - **Archivos y funciones afectadas** (p. ej. `game.js` → `clearLines()`, `tryRotate()`; ids del DOM en `index.html`).
+               - **Propuesta de implementación** paso a paso, respetando la arquitectura de CLAUDE.md.
+               - **Riesgos y casos borde** (p. ej. emparejar `cancelAnimationFrame(animId)` con el loop, fórmula de `dropInterval`).
+               - **Criterios de aceptación** y cómo probarlo manualmente.
+
+            Reglas:
+            - NO modifiques código, NO crees ramas ni PRs; solo etiquetas y un comentario.
+            - NO incluyas la mención "@claude" en el comentario.
+            - Mantén los textos de cara al usuario en español.
