@@ -29,4 +29,4 @@ Three files, all loaded by `index.html` (`game.js` via a plain `<script>`, no mo
 
 - `requestAnimationFrame` `loop(ts)` accumulates elapsed time into `dropAccum` and applies gravity when it exceeds `dropInterval`, then calls `draw()` every frame. `animId` is cancelled on pause, game over and `init()` — keep that pairing when changing control flow so loops don't stack.
 - Input is one `keydown` listener (arrows, `X`, Space, `P`/`Escape`). Pause shows the `#pause-menu` overlay (Reanudar/Reiniciar/controles/`startLevel` selector, persisted in localStorage; `init()` uses `startLevel`). Soft drop and hard drop add score directly (1 / 2 per row); line-clear scoring uses `LINE_SCORES * level`.
-- Speed: `dropInterval = max(100, 1000 - (level-1)*90)`; level = `floor(lines/10)+1`.
+- Speed: `dropInterval = max(100, 1000 - (level-1)*90)`; level = `startLevel + floor(lines/10)`.
