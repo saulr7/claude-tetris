@@ -40,9 +40,19 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const themeBtn = document.getElementById('theme-btn');
+const nameForm = document.getElementById('name-form');
+const nameInput = document.getElementById('name-input');
+const recordsEl = document.getElementById('records');
+const scoresBody = document.getElementById('scores-body');
+const bestStatsEl = document.getElementById('best-stats');
+const clearBtn = document.getElementById('clear-btn');
+
+const SCORES_KEY = 'tetris-highscores';
+const BEST_KEY = 'tetris-best';
+const MAX_SCORES = 5;
 
 let gridColor = '#22222e';
-let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId, combo, maxCombo, highlightIdx;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -112,6 +122,7 @@ function clearLines() {
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
+  return cleared;
 }
 
 function ghostY() {
@@ -139,7 +150,13 @@ function softDrop() {
 
 function lockPiece() {
   merge();
-  clearLines();
+  // Combo: locks consecutivos que limpian líneas
+  if (clearLines()) {
+    combo++;
+    maxCombo = Math.max(maxCombo, combo);
+  } else {
+    combo = 0;
+  }
   spawn();
 }
 
@@ -190,6 +207,7 @@ function drawGrid() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid();
+  if (!current) return; // pantalla de inicio: tablero neutro
 
   // board
   for (let r = 0; r < ROWS; r++)
@@ -220,25 +238,125 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
+function loadScores() {
+  try {
+    const data = JSON.parse(localStorage.getItem(SCORES_KEY));
+    if (Array.isArray(data)) {
+      return data.filter(s => s && typeof s.score === 'number').slice(0, MAX_SCORES);
+    }
+  } catch (e) { /* localStorage no disponible o datos corruptos */ }
+  return [];
+}
+
+function saveScores(list) {
+  try { localStorage.setItem(SCORES_KEY, JSON.stringify(list)); } catch (e) { /* ignorar */ }
+}
+
+function loadBest() {
+  try {
+    const b = JSON.parse(localStorage.getItem(BEST_KEY));
+    if (b && typeof b === 'object') return { maxCombo: +b.maxCombo || 0, maxLines: +b.maxLines || 0 };
+  } catch (e) { /* ignorar */ }
+  return { maxCombo: 0, maxLines: 0 };
+}
+
+function saveBest(b) {
+  try { localStorage.setItem(BEST_KEY, JSON.stringify(b)); } catch (e) { /* ignorar */ }
+}
+
+// ¿La puntuación entra en el top 5?
+function qualifies(s) {
+  if (s <= 0) return false;
+  const list = loadScores();
+  return list.length < MAX_SCORES || s > list[list.length - 1].score;
+}
+
+function renderRecords() {
+  const list = loadScores();
+  scoresBody.textContent = '';
+  if (!list.length) {
+    const tr = document.createElement('tr');
+    const td = document.createElement('td');
+    td.colSpan = 6;
+    td.className = 'empty';
+    td.textContent = 'Sin records todavía';
+    tr.appendChild(td);
+    scoresBody.appendChild(tr);
+  }
+  list.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    if (i === highlightIdx) tr.className = 'new-record';
+    let d = '';
+    try { d = new Date(s.date).toLocaleDateString('es'); } catch (e) { /* ignorar */ }
+    if (d === 'Invalid Date') d = '';
+    [i + 1, s.name, Number(s.score).toLocaleString(), s.lines, s.level, d].forEach(v => {
+      const td = document.createElement('td');
+      td.textContent = v ?? '';
+      tr.appendChild(td);
+    });
+    scoresBody.appendChild(tr);
+  });
+  const b = loadBest();
+  bestStatsEl.textContent = `Mejor combo: ${b.maxCombo} · Máx. líneas: ${b.maxLines}`;
+}
+
+// Muestra el overlay; withRecords muestra la tabla de records
+function showOverlay(title, scoreText, withRecords, btnText) {
+  overlayTitle.textContent = title;
+  overlayScore.textContent = scoreText;
+  recordsEl.classList.toggle('hidden', !withRecords);
+  if (withRecords) renderRecords();
+  restartBtn.textContent = btnText;
+  overlay.classList.remove('hidden');
+}
+
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
-  overlayTitle.textContent = 'GAME OVER';
-  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
-  overlay.classList.remove('hidden');
+  const best = loadBest();
+  best.maxCombo = Math.max(best.maxCombo, maxCombo);
+  best.maxLines = Math.max(best.maxLines, lines);
+  saveBest(best);
+  const isRecord = qualifies(score);
+  nameForm.classList.toggle('hidden', !isRecord);
+  showOverlay('GAME OVER', `Puntuación: ${score.toLocaleString()} · Combo máx.: ${maxCombo}`, true, 'Reiniciar');
+  if (isRecord) {
+    nameInput.value = 'Jugador';
+    nameInput.focus();
+    nameInput.select();
+  }
+}
+
+function submitRecord() {
+  const list = loadScores();
+  const entry = {
+    name: nameInput.value.trim().slice(0, 12) || 'Jugador',
+    score, lines, level,
+    date: new Date().toISOString(),
+  };
+  // Insertar tras los empates existentes y recortar al top 5
+  let idx = list.findIndex(s => s.score < entry.score);
+  if (idx === -1) idx = list.length;
+  list.splice(idx, 0, entry);
+  list.length = Math.min(list.length, MAX_SCORES);
+  saveScores(list);
+  highlightIdx = idx;
+  nameForm.classList.add('hidden');
+  nameInput.blur();
+  renderRecords();
 }
 
 function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    overlay.classList.add('hidden');
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    nameForm.classList.add('hidden');
+    showOverlay('PAUSA', '', false, 'Reiniciar');
   }
 }
 
@@ -267,9 +385,9 @@ function applyTheme(theme, save) {
     try { localStorage.setItem('theme', theme); } catch (e) { /* localStorage no disponible */ }
   }
   // En pausa o game over el loop está cancelado: repintar a mano
-  if (current && (paused || gameOver)) {
+  if (board && (!current || paused || gameOver)) {
     draw();
-    drawNext();
+    if (current) drawNext();
   }
 }
 
@@ -291,6 +409,10 @@ function init() {
   gameOver = false;
   dropInterval = 1000;
   dropAccum = 0;
+  combo = 0;
+  maxCombo = 0;
+  highlightIdx = -1;
+  nameForm.classList.add('hidden');
   lastTime = performance.now();
   next = randomPiece();
   spawn();
@@ -301,6 +423,8 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  // No pasar teclas al juego mientras se escribe el nombre
+  if (e.target instanceof HTMLInputElement) return;
   if (e.code === 'KeyP') { togglePause(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
@@ -327,7 +451,29 @@ document.addEventListener('keydown', e => {
   updateHUD();
 });
 
-restartBtn.addEventListener('click', init);
+restartBtn.addEventListener('click', () => {
+  init();
+  restartBtn.blur(); // evita que Space (caída) reactive el botón
+});
+
+nameForm.addEventListener('submit', e => {
+  e.preventDefault();
+  submitRecord();
+  restartBtn.focus();
+  restartBtn.blur();
+});
+
+clearBtn.addEventListener('click', () => {
+  if (!confirm('¿Borrar todos los records y mejores marcas?')) return;
+  try {
+    localStorage.removeItem(SCORES_KEY);
+    localStorage.removeItem(BEST_KEY);
+  } catch (e) { /* ignorar */ }
+  highlightIdx = -1;
+  nameForm.classList.add('hidden');
+  renderRecords();
+  clearBtn.blur();
+});
 
 themeBtn.addEventListener('click', () => {
   const isLight = document.documentElement.dataset.theme === 'light';
@@ -335,5 +481,10 @@ themeBtn.addEventListener('click', () => {
   themeBtn.blur(); // evita que Space (caída) vuelva a activar el botón
 });
 
+// Pantalla de inicio: tablero neutro y overlay con records; el juego arranca con "Jugar"
+board = createBoard();
+gameOver = true; // bloquea el input hasta pulsar Jugar
+highlightIdx = -1;
 initTheme();
-init();
+draw();
+showOverlay('TETRIS', '', true, 'Jugar');
