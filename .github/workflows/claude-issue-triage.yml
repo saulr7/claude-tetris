@@ -34,13 +34,34 @@ jobs:
             2. Lee `CLAUDE.md` y el código relevante (`game.js`, `index.html`, `style.css`) para entender qué partes afecta el issue.
             3. Busca posibles duplicados con `gh search issues` o `gh issue list`. Si encuentras uno, menciónalo en el comentario y usa la etiqueta `duplicate`.
             4. Aplica entre 1 y 3 etiquetas que YA EXISTAN con `gh issue edit ${{ github.event.issue.number }} --add-label "<etiqueta>"`. Nunca crees etiquetas nuevas. Usa `good first issue` solo si el cambio es pequeño y localizado.
-            5. Publica UN solo comentario en español con `gh issue comment ${{ github.event.issue.number }} --body "..."` que incluya:
-               - **Resumen** del issue.
-               - **Etiquetas aplicadas** y por qué.
-               - **Archivos y funciones afectadas** (p. ej. `game.js` → `clearLines()`, `tryRotate()`; ids del DOM en `index.html`).
-               - **Propuesta de implementación** paso a paso, respetando la arquitectura de CLAUDE.md.
-               - **Riesgos y casos borde** (p. ej. emparejar `cancelAnimationFrame(animId)` con el loop, fórmula de `dropInterval`).
-               - **Criterios de aceptación** y cómo probarlo manualmente.
+            5. Publica UN solo comentario en español con `gh issue comment ${{ github.event.issue.number }} --body "..."` que use formato Markdown con esta estructura exacta:
+
+               ## 🤖 Triage automático
+
+               ### 📝 Resumen
+               Párrafo breve describiendo el issue.
+
+               ### 🏷️ Etiquetas aplicadas
+               - `etiqueta` — motivo
+
+               ### 📂 Archivos y funciones afectadas
+               | Archivo | Funciones / elementos |
+               |---|---|
+               | `game.js` | `clearLines()`, `tryRotate()` |
+               | `index.html` | ids del DOM afectados |
+
+               ### 🛠️ Propuesta de implementación
+               1. Pasos numerados, respetando la arquitectura de CLAUDE.md.
+               (usa bloques de código ```js para fragmentos cuando ayuden)
+
+               ### ⚠️ Riesgos y casos borde
+               - Viñetas (p. ej. emparejar `cancelAnimationFrame(animId)` con el loop, fórmula de `dropInterval`).
+
+               ### ✅ Criterios de aceptación
+               - [ ] Casillas de verificación, incluyendo cómo probarlo manualmente.
+
+               Si hay un duplicado, añade antes del resumen una cita: `> Posible duplicado de #N`.
+               Usa `código en línea` para nombres de archivos, funciones e ids.
 
             Reglas:
             - NO modifiques código, NO crees ramas ni PRs; solo etiquetas y un comentario.
